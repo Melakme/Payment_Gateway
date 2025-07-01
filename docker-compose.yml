@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # Development mode - runs both frontend and backend
+  payment-gateway-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    ports:
+      - "3001:3001"  # Backend API
+      - "5173:5173"  # Frontend dev server
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+      - ./src:/app/src  # Hot reload for frontend
+      - ./backend:/app/backend  # Hot reload for backend
+    networks:
+      - payment-network
+    profiles:
+      - dev
+
+  # Production mode - optimized single container
+  payment-gateway-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - payment-network
+    profiles:
+      - prod
+
+  # Optional: Add Redis for production session storage
+  # redis:
+  #   image: redis:7-alpine
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis-data:/data
+  #   networks:
+  #     - payment-network
+  #   profiles:
+  #     - prod
+
+  mock-provider:
+    build:
+      context: ../mock-provider
+    ports:
+      - "4000:4000"
+
+networks:
+  payment-network:
+    driver: bridge
+
+volumes:
+  # redis-data: 
