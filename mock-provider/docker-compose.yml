@@ -1,0 +1,91 @@
+version: '3.8'
+
+services:
+  # Mock Payment Provider with default settings
+  mock-provider:
+    build: .
+    ports:
+      - "4000:4000"
+    environment:
+      - TPS=2
+      - BURST_SIZE=5
+      - MIN_LATENCY=200
+      - MAX_LATENCY=800
+      - TRANSIENT_FAILURE_RATE=0.2
+      - PERMANENT_FAILURE_RATE=0.05
+      - TIMEOUT_RATE=0.1
+      - TIMEOUT_DURATION=10000
+      - CIRCUIT_BREAKER=true
+      - CIRCUIT_BREAKER_THRESHOLD=5
+      - CIRCUIT_BREAKER_TIMEOUT=30000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # High failure rate provider for stress testing
+  mock-provider-stress:
+    build: .
+    ports:
+      - "4001:4000"
+    environment:
+      - TPS=1
+      - BURST_SIZE=3
+      - MIN_LATENCY=500
+      - MAX_LATENCY=2000
+      - TRANSIENT_FAILURE_RATE=0.4
+      - PERMANENT_FAILURE_RATE=0.1
+      - TIMEOUT_RATE=0.2
+      - TIMEOUT_DURATION=15000
+      - CIRCUIT_BREAKER=true
+      - CIRCUIT_BREAKER_THRESHOLD=3
+      - CIRCUIT_BREAKER_TIMEOUT=60000
+    restart: unless-stopped
+    profiles:
+      - stress-test
+
+  # High performance provider for load testing
+  mock-provider-performance:
+    build: .
+    ports:
+      - "4002:4000"
+    environment:
+      - TPS=10
+      - BURST_SIZE=20
+      - MIN_LATENCY=50
+      - MAX_LATENCY=200
+      - TRANSIENT_FAILURE_RATE=0.05
+      - PERMANENT_FAILURE_RATE=0.01
+      - TIMEOUT_RATE=0.02
+      - TIMEOUT_DURATION=5000
+      - CIRCUIT_BREAKER=false
+    restart: unless-stopped
+    profiles:
+      - performance-test
+
+  # Unreliable provider for chaos testing
+  mock-provider-chaos:
+    build: .
+    ports:
+      - "4003:4000"
+    environment:
+      - TPS=0.5
+      - BURST_SIZE=1
+      - MIN_LATENCY=1000
+      - MAX_LATENCY=5000
+      - TRANSIENT_FAILURE_RATE=0.6
+      - PERMANENT_FAILURE_RATE=0.2
+      - TIMEOUT_RATE=0.3
+      - TIMEOUT_DURATION=20000
+      - CIRCUIT_BREAKER=true
+      - CIRCUIT_BREAKER_THRESHOLD=2
+      - CIRCUIT_BREAKER_TIMEOUT=120000
+    restart: unless-stopped
+    profiles:
+      - chaos-test
+
+networks:
+  default:
+    name: mock-provider-network 
